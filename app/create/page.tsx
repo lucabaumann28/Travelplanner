@@ -4,44 +4,76 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const MONTHS = [
-  "Januar","Februar","März","April","Mai","Juni",
-  "Juli","August","September","Oktober","November","Dezember",
+  "Januar",
+  "Februar",
+  "März",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember",
 ];
 
 const INTERESTS = [
-  "Kultur","Natur","Food","Nachtleben","Kunst","Architektur",
-  "Shopping","Familie","Outdoor","Sport","Geschichte","Entspannung","Sehenswürdigkeiten",
+  "Kultur",
+  "Natur",
+  "Food",
+  "Nachtleben",
+  "Kunst",
+  "Architektur",
+  "Shopping",
+  "Familie",
+  "Outdoor",
+  "Sport",
+  "Geschichte",
+  "Entspannung",
+  "Sehenswürdigkeiten",
 ];
 
 const CITY_SUGGESTIONS = [
-  "Berlin","Barcelona","New York City","Paris","Rom","London","Athen","Lissabon","Istanbul","Dubai","Bangkok","Tokio","Sydney"
+  "Berlin",
+  "Barcelona",
+  "New York City",
+  "Paris",
+  "Rom",
+  "London",
+  "Athen",
+  "Lissabon",
+  "Istanbul",
+  "Dubai",
+  "Bangkok",
+  "Tokio",
+  "Sydney",
 ];
 
-function Pill({
-  active,
-  children,
-  onClick,
-  disabled = false,
-}: {
+type PillProps = {
   active: boolean;
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
-}) {
+};
+
+function Pill({ active, children, onClick, disabled = false }: PillProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       aria-pressed={active}
-      className={`relative px-3 py-1.5 rounded-2xl border text-sm select-none
-        ${active ? "bg-black text-white border-black" : "border-zinc-300 hover:bg-zinc-50"}
+      className={`pill relative select-none px-4 py-2 text-sm
+        ${active ? "active" : ""}
         ${disabled ? "opacity-50 cursor-not-allowed" : ""}
       `}
     >
       <span className="pr-4">{children}</span>
       {active && (
-        <span aria-hidden className="absolute right-1 top-1 text-[11px] leading-none">✓</span>
+        <span aria-hidden className="absolute right-1 top-1 text-[11px] leading-none">
+          ✓
+        </span>
       )}
     </button>
   );
@@ -50,29 +82,22 @@ function Pill({
 export default function CreatePage() {
   const router = useRouter();
 
-  // Ziel + Vorschläge
   const [city, setCity] = useState("");
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
 
-  // Dauer
-  const [selectedDays, setSelectedDays] = useState<number | null>(null); // 1..14
-  const [customDays, setCustomDays] = useState<string>("");             // 1..30
+  const [selectedDays, setSelectedDays] = useState<number | null>(null);
+  const [customDays, setCustomDays] = useState<string>("");
 
-  // Monat
   const [month, setMonth] = useState("");
 
-  // Budget (10–5000 in 20er-Schritten) + "Keine Angabe"
   const [budget, setBudget] = useState<number>(1000);
   const [noBudget, setNoBudget] = useState<boolean>(false);
 
-  // Interessen + Überraschung
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [surpriseMe, setSurpriseMe] = useState<boolean>(false);
 
-  // Hinweise
   const [notes, setNotes] = useState("");
 
-  // finale Tage: custom > pill
   const days = useMemo(() => {
     if (customDays) {
       const n = Number(customDays);
@@ -83,7 +108,6 @@ export default function CreatePage() {
 
   const isValid = city.trim().length > 0 && !!days && month !== "";
 
-  // Zeitraum aus Monat + Tagen ableiten
   function computeDates(): { ts: string; te: string } {
     const year = new Date().getFullYear();
     const idx = MONTHS.indexOf(month);
@@ -117,95 +141,73 @@ export default function CreatePage() {
       notes,
     });
 
-    if (!noBudget) q.set("budget", String(budget)); // nur senden, wenn nicht „Keine Angabe“
+    if (!noBudget) q.set("budget", String(budget));
     if (surpriseMe) q.set("surprise", "1");
 
     router.push(`/plan/test?${q.toString()}`);
   }
 
   return (
-    <main className="min-h-screen bg-white">
-      <section className="mx-auto max-w-3xl px-4 py-10">
-        <h1 className="text-4xl font-bold tracking-tight mb-8">Reiseplan erstellen</h1>
+    <section className="glass-panel mx-auto max-w-5xl px-8 py-12">
+      <div className="mb-12 flex flex-col items-center gap-4 text-center">
+        <span className="inline-flex items-center rounded-full border border-white/70 bg-white/80 px-5 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-ink/60">
+          Dein Reise-Setup
+        </span>
+        <h1 className="text-4xl font-semibold tracking-tight text-ink">
+          Reiseplan erstellen
+        </h1>
+        <p className="max-w-2xl text-sm text-ink/60">
+          Wähle Destination, Dauer, Budget und Interessen. TripMVP baut daraus deinen individuellen Apple-inspirierten Reiseplan mit Karten, Zeiten und Highlights.
+        </p>
+      </div>
 
-        <form onSubmit={onSubmit} className="space-y-8">
-          {/* Ziel */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Ziel</label>
-            <input
-              value={city}
-              onChange={(e) => { setCity(e.target.value); setShowCitySuggestions(true); }}
-              onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
-              placeholder="z. B. Barcelona"
-              className="w-full rounded-2xl border border-zinc-300 px-4 py-2.5"
-              autoComplete="off"
-            />
-            {showCitySuggestions && city.length > 0 && (
-              <div className="mt-2 border rounded-xl bg-white shadow-sm max-h-56 overflow-auto">
-                {CITY_SUGGESTIONS
-                  .filter((c) => c.toLowerCase().includes(city.toLowerCase()))
-                  .map((c) => (
+      <form onSubmit={onSubmit} className="grid gap-8">
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="surface-card space-y-3 px-6 py-6">
+            <label className="block">Reiseziel</label>
+            <div className="relative">
+              <input
+                value={city}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                  setShowCitySuggestions(true);
+                }}
+                onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
+                placeholder="z. B. Barcelona"
+                autoComplete="off"
+              />
+              {showCitySuggestions && city.length > 0 && (
+                <div className="surface-card absolute inset-x-0 top-full z-20 mt-2 max-h-56 overflow-auto rounded-3xl border border-white/70">
+                  {CITY_SUGGESTIONS.filter((c) =>
+                    c.toLowerCase().includes(city.toLowerCase())
+                  ).map((c) => (
                     <div
                       key={c}
-                      onMouseDown={() => { setCity(c); setShowCitySuggestions(false); }}
-                      className="px-4 py-2 cursor-pointer hover:bg-zinc-100"
+                      onMouseDown={() => {
+                        setCity(c);
+                        setShowCitySuggestions(false);
+                      }}
+                      className="cursor-pointer px-5 py-2 text-sm transition hover:bg-white/80"
                     >
                       {c}
                     </div>
                   ))}
-              </div>
-            )}
-          </div>
-
-          {/* Dauer */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium">Dauer (Tage)</label>
-              <span className="text-sm text-zinc-600">
-                {days ? `Gewählt: ${days} Tage` : "Bitte wählen"}
-              </span>
-            </div>
-
-            {/* in Pärchen 1–2, 3–4, … 13–14 */}
-            <div className="space-y-2">
-              {[[1,2],[3,4],[5,6],[7,8],[9,10],[11,12],[13,14]].map(([a,b]) => (
-                <div key={`${a}-${b}`} className="flex flex-wrap gap-2">
-                  {[a,b].map((d) => (
-                    <Pill
-                      key={d}
-                      active={selectedDays === d && !customDays}
-                      onClick={() => { setSelectedDays(d); setCustomDays(""); }}
-                    >
-                      {d}
-                    </Pill>
-                  ))}
                 </div>
-              ))}
+              )}
             </div>
-
-            {/* Individuelle Dauer */}
-            <div className="mt-3">
-              <input
-                type="number"
-                min={1}
-                max={30}
-                value={customDays}
-                onChange={(e) => setCustomDays(e.target.value)}
-                placeholder="Individuelle Dauer (1–30 Tage)"
-                className="w-60 rounded-2xl border border-zinc-300 px-4 py-2.5"
-              />
-            </div>
+            <p className="text-xs text-ink/45">
+              Tippe ein paar Buchstaben für Vorschläge aus beliebten Städten.
+            </p>
           </div>
 
-          {/* Monat */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium">Reisezeitraum (Monat)</label>
-              <span className="text-sm text-zinc-600">
-                {month ? `Gewählt: ${month}` : "Bitte wählen"}
+          <div className="surface-card space-y-4 px-6 py-6">
+            <div className="flex items-center justify-between">
+              <label className="block">Reisezeitraum</label>
+              <span className="text-xs font-semibold uppercase tracking-[0.3em] text-ink/45">
+                {month ? month : "Bitte wählen"}
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {MONTHS.map((m) => (
                 <Pill key={m} active={month === m} onClick={() => setMonth(m)}>
                   {m}
@@ -213,96 +215,139 @@ export default function CreatePage() {
               ))}
             </div>
           </div>
+        </div>
 
-          {/* Budget */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium">Budget für Aktivitäten</label>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setNoBudget((v) => !v)}
-                  className={`rounded-xl px-3 py-1.5 text-sm border ${
-                    noBudget ? "bg-black text-white border-black" : "border-zinc-300 hover:bg-zinc-50"
-                  }`}
-                >
-                  {noBudget ? "Keine Angabe ✓" : "Keine Angabe"}
-                </button>
-                {!noBudget && (
-                  <span className="text-sm tabular-nums">
-                    {new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(budget)}
-                  </span>
-                )}
-              </div>
-            </div>
-
+        <div className="surface-card space-y-4 px-6 py-6">
+          <div className="flex items-center justify-between">
+            <label>Dauer (Tage)</label>
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-ink/45">
+              {days ? `Gewählt: ${days}` : "Bitte wählen"}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[[1,2],[3,4],[5,6],[7,8],[9,10],[11,12],[13,14]].flat().map((d) => (
+              <Pill
+                key={d}
+                active={selectedDays === d && !customDays}
+                onClick={() => {
+                  setSelectedDays(d);
+                  setCustomDays("");
+                }}
+              >
+                {d} Tage
+              </Pill>
+            ))}
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <input
-              type="range"
-              min={10}
-              max={5000}
-              step={20}
-              value={noBudget ? 10 : budget}
-              onChange={(e) => setBudget(Number(e.target.value))}
-              disabled={noBudget}
-              className="w-full"
+              type="number"
+              min={1}
+              max={30}
+              value={customDays}
+              onChange={(e) => setCustomDays(e.target.value)}
+              placeholder="Eigene Tageszahl (1–30)"
+              className="w-full sm:w-64"
             />
-            <div className={`flex justify-between text-[11px] mt-1 ${noBudget ? "text-zinc-400" : "text-zinc-500"}`}>
-              <span>10 €</span>
-              <span>5.000 €</span>
+            <span className="text-xs text-ink/45">
+              Individuelle Eingabe überschreibt die Auswahl oben.
+            </span>
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="surface-card space-y-4 px-6 py-6">
+            <label className="block">Budget (gesamt)</label>
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min={10}
+                max={5000}
+                step={20}
+                value={noBudget ? 10 : budget}
+                onChange={(e) => setBudget(Number(e.target.value))}
+                disabled={noBudget}
+                className="flex-1"
+              />
+              <span className={`text-sm font-medium ${noBudget ? "text-ink/30" : "text-ink/70"}`}>
+                {new Intl.NumberFormat("de-DE", {
+                  style: "currency",
+                  currency: "EUR",
+                  maximumFractionDigits: 0,
+                }).format(budget)}
+              </span>
             </div>
+            <label className="inline-flex items-center gap-2 text-xs font-medium normal-case text-ink/60">
+              <input
+                type="checkbox"
+                checked={noBudget}
+                onChange={(e) => setNoBudget(e.target.checked)}
+                className="h-4 w-4 rounded border"
+              />
+              Kein fixes Budget
+            </label>
           </div>
 
-          {/* Interessen */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium">Interessen</label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={surpriseMe}
-                  onChange={(e) => setSurpriseMe(e.target.checked)}
-                />
-                Ich möchte die Stadt einfach kennenlernen / lass mich überraschen
-              </label>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {INTERESTS.map((name) => (
-                <Pill
-                  key={name}
-                  active={selectedInterests.includes(name)}
-                  onClick={() => toggleInterest(name)}
-                  disabled={surpriseMe}
-                >
-                  {name}
-                </Pill>
-              ))}
-            </div>
+          <div className="surface-card space-y-4 px-6 py-6">
+            <label className="block">Überrasch mich</label>
+            <p className="text-xs text-ink/45">
+              Du willst, dass wir dich mit neuen Ideen überraschen? Wir priorisieren Inspiration über bekannte Favoriten.
+            </p>
+            <label className="inline-flex items-center gap-2 text-sm font-medium normal-case text-ink/70">
+              <input
+                type="checkbox"
+                checked={surpriseMe}
+                onChange={(e) => setSurpriseMe(e.target.checked)}
+                className="h-4 w-4 rounded border"
+              />
+              Aktivieren
+            </label>
           </div>
+        </div>
 
-          {/* Hinweise */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Sonstige Hinweise</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="z. B. früh starten, glutenfrei, kinderwagenfreundlich …"
-              className="w-full rounded-2xl border border-zinc-300 px-4 py-2.5"
-              rows={3}
-            />
+        <div className="surface-card space-y-4 px-6 py-6">
+          <div className="flex items-center justify-between">
+            <label className="block">Interessen</label>
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-ink/45">
+              bis zu 6 auswählen
+            </span>
           </div>
+          <div className="flex flex-wrap gap-2">
+            {INTERESTS.map((interest) => (
+              <Pill
+                key={interest}
+                active={selectedInterests.includes(interest)}
+                onClick={() => toggleInterest(interest)}
+                disabled={surpriseMe}
+              >
+                {interest}
+              </Pill>
+            ))}
+          </div>
+        </div>
 
+        <div className="surface-card space-y-3 px-6 py-6">
+          <label className="block">Besondere Hinweise</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            placeholder="z. B. Allergien, Anreisefenster, Must-See"
+          />
+          <p className="text-xs text-ink/45">
+            Wir berücksichtigen diese Hinweise bei der Planung deiner Tage.
+          </p>
+        </div>
+
+        <div className="flex justify-center pt-4">
           <button
             type="submit"
+            className="btn-primary min-w-[220px] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!isValid}
-            className={`rounded-2xl px-4 py-2 text-white transition ${
-              isValid ? "bg-black hover:opacity-90" : "bg-zinc-400 cursor-not-allowed"
-            }`}
           >
-            Plan erzeugen
+            Plan generieren
           </button>
-        </form>
-      </section>
-    </main>
+        </div>
+      </form>
+    </section>
   );
 }

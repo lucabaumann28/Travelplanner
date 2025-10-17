@@ -1,36 +1,47 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
-    <section className="text-center">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="text-4xl md:text-6xl font-semibold tracking-tight leading-tight">
-          Reiseplanung, <span className="text-brand">neu gedacht</span>.
+    <section className="relative overflow-hidden glass-panel px-8 py-16 text-center">
+      <div className="absolute inset-x-10 -top-32 h-72 rounded-full bg-[radial-gradient(circle_at_top,#4BA3FF33,transparent)] blur-3xl" />
+      <div className="relative mx-auto max-w-3xl">
+        <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-ink/60">
+          Sanft. Schnell. Smart.
+        </span>
+        <h1 className="mt-6 text-4xl font-semibold leading-tight tracking-tight text-ink md:text-6xl">
+          Reiseplanung, neu gedacht – im <span className="text-brand">Apple-Style</span>.
         </h1>
-        <p className="mt-5 text-zinc-600 text-lg">
-          Erzeuge in Sekunden einen realistischen Reiseplan – Zeiten, Wege, Budget
-          und Karte inklusive. Teile, bewerte und optimiere mit der Community.
+        <p className="mt-5 text-lg text-ink/70">
+          Plane in Sekunden eine komplette Reise mit Zeitplanung, Budget und Highlights.
+          TripMVP sorgt für klare Strukturen, elegante Karten und teilbare Ergebnisse.
         </p>
 
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <a href="/create" className="rounded-full bg-brand text-white px-6 py-3 font-medium hover:bg-brand/90">
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+          <Link href="/create" className="btn-primary">
             Jetzt Plan erstellen
-          </a>
-          <a href="/login" className="rounded-full border border-zinc-300 px-6 py-3 font-medium hover:bg-white/70 backdrop-blur">
+          </Link>
+          <Link href="/login" className="btn-secondary">
             Anmelden
-          </a>
+          </Link>
         </div>
 
-        {/* Hero-Karte als Platzhalter */}
-        <div className="card mt-12 p-6">
-          <div className="h-[360px] rounded-xl bg-[radial-gradient(1000px_400px_at_50%_-20%,rgba(0,122,255,.15),transparent)] grid place-items-center text-zinc-400">
-            <span>Hier erscheint später deine interaktive Karte</span>
+        <div className="surface-card mt-14 p-6 md:p-10">
+          <div className="relative h-[360px] overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-white/60 via-white/20 to-brand/10 shadow-inner">
+            <div className="absolute inset-6 rounded-3xl border border-white/40 bg-white/65 backdrop-blur-xl" />
+            <div className="relative z-10 grid h-full place-items-center text-sm font-medium text-ink/55">
+              Interaktive Karten-Preview erscheint hier in Kürze
+            </div>
           </div>
         </div>
       </div>
 
-      {/* kleine Trust/Features-Zeile */}
-      <div className="mt-10 text-zinc-500 text-sm">
-        DSGVO-freundlich · Superschnell · Für Desktop & Mobile optimiert
-      </div>
+        <div className="relative mt-14 grid gap-4 text-sm text-ink/60 md:grid-cols-3">
+          {["DSGVO-freundlich", "Sofort startklar", "Für Desktop & Mobile optimiert"].map((item) => (
+            <div key={item} className="glass-panel px-6 py-4 text-center">
+              {item}
+            </div>
+          ))}
+        </div>
     </section>
   );
 }
