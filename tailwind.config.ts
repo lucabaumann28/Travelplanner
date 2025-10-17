@@ -1,5 +1,7 @@
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+import type { Config } from "tailwindcss";
+import typography from "@tailwindcss/typography";
+
+const config: Config = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -10,6 +12,9 @@ module.exports = {
         brand: "#0A84FF",
         ink: "#1D1D1F",
         cloud: "#F5F5F7",
+      },
+      maxWidth: {
+        "6xl": "72rem",
       },
       boxShadow: {
         glow: "0 25px 70px -35px rgba(10, 132, 255, 0.55)",
@@ -24,5 +29,7 @@ module.exports = {
       },
     },
   },
-  plugins: [require("@tailwindcss/typography")],
+  plugins: [typography],
 };
+
+export default config;

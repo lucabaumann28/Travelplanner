@@ -25,8 +25,84 @@ const schema = z.object({
   includePrompt: z.boolean().optional(),
 });
 
+const PLAN_ACTIVITY_CATEGORIES = ["sight", "food", "activity", "transport", "other"] as const;
+type PlanActivityCategory = (typeof PLAN_ACTIVITY_CATEGORIES)[number];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+interface PlanActivity {
+  title: string;
+  category: PlanActivityCategory;
+  start: string | null;
+  end: string | null;
+  cost_estimate: number | null;
+  lat: number | null;
+  lon: number | null;
+  notes: string | null;
+}
+
+interface PlanDay {
+  day_index: number;
+  note: string | null;
+  activities: PlanActivity[];
+}
+
+interface PlanJson {
+  title: string;
+  days: PlanDay[];
+}
+
+function parsePlanJson(candidate: unknown): PlanJson | null {
+  if (!isRecord(candidate)) return null;
+  const data = candidate;
+  const rawDays = data.days;
+  if (!Array.isArray(rawDays)) return null;
+
+  const days: PlanDay[] = [];
+  for (const rawDay of rawDays) {
+    if (!isRecord(rawDay)) continue;
+    const dayRecord = rawDay;
+    const dayIndex = typeof dayRecord.day_index === "number" ? dayRecord.day_index : days.length + 1;
+    const note = typeof dayRecord.note === "string" ? dayRecord.note : null;
+
+    const activities: PlanActivity[] = [];
+    const rawActivities = dayRecord.activities;
+    if (Array.isArray(rawActivities)) {
+      for (const rawActivity of rawActivities) {
+        if (!isRecord(rawActivity)) continue;
+        const activityRecord = rawActivity;
+        const title = typeof activityRecord.title === "string" ? activityRecord.title : null;
+        if (!title) continue;
+        const categoryValue = activityRecord.category;
+        const category = PLAN_ACTIVITY_CATEGORIES.includes(categoryValue as PlanActivityCategory)
+          ? (categoryValue as PlanActivityCategory)
+          : "other";
+
+        activities.push({
+          title,
+          category,
+          start: typeof activityRecord.start === "string" ? activityRecord.start : null,
+          end: typeof activityRecord.end === "string" ? activityRecord.end : null,
+          cost_estimate: typeof activityRecord.cost_estimate === "number" ? activityRecord.cost_estimate : null,
+          lat: typeof activityRecord.lat === "number" ? activityRecord.lat : null,
+          lon: typeof activityRecord.lon === "number" ? activityRecord.lon : null,
+          notes: typeof activityRecord.notes === "string" ? activityRecord.notes : null,
+        });
+      }
+    }
+
+    days.push({ day_index: dayIndex, note, activities });
+  }
+
+  if (!days.length) return null;
+  const title = typeof data.title === "string" && data.title.trim().length > 0 ? data.title : "Reiseplan";
+  return { title, days };
+}
+
 /** deterministischer Demo-Plan */
-function buildDemoPlan(destination: string, days: number) {
+function buildDemoPlan(destination: string, days: number): PlanJson {
   const actPool = [
     { title: "Altstadt-Spaziergang", category: "sight" as const },
     { title: "Beliebtes Café", category: "food" as const },
@@ -35,7 +111,7 @@ function buildDemoPlan(destination: string, days: number) {
     { title: "Parks & Gärten", category: "activity" as const },
     { title: "ÖPNV-Transfer", category: "transport" as const },
   ];
-  const out: any = { title: `Demo-Plan für ${destination}`, days: [] as any[] };
+  const out: PlanJson = { title: `Demo-Plan für ${destination}`, days: [] };
   for (let i = 1; i <= days; i++) {
     const activities = [
       { ...actPool[(i + 0) % actPool.length], start: "09:00", end: "11:00", cost_estimate: 0, lat: null, lon: null, notes: null },
@@ -71,13 +147,13 @@ async function geocodeCityCenter(query: string) {
 }
 
 /** Fallback-Zentrum aus Aktivitäten (Mittelpunkt) */
-function centerFromActivities(planJson: any): { lat: number; lon: number } | null {
+function centerFromActivities(planJson: PlanJson): { lat: number; lon: number } | null {
   try {
     const coords: { lat: number; lon: number }[] = [];
-    for (const d of planJson?.days ?? []) {
-      for (const a of d?.activities ?? []) {
-        if (typeof a?.lat === "number" && typeof a?.lon === "number") {
-          coords.push({ lat: a.lat, lon: a.lon });
+    for (const day of planJson.days) {
+      for (const activity of day.activities) {
+        if (typeof activity.lat === "number" && typeof activity.lon === "number") {
+          coords.push({ lat: activity.lat, lon: activity.lon });
         }
       }
     }
@@ -181,8 +257,8 @@ export async function POST(req: NextRequest) {
 
   // OpenAI / Demo
   const DEMO = String(process.env.DEMO_MODE || "").toLowerCase() === "true";
-  let planJson: any = null;
-  let demoUsed = false;
+  let planJson: PlanJson = buildDemoPlan(destination, days);
+  let demoUsed = true;
   let errorHint: string | undefined;
   let rawAiMessage: string | undefined;
 
@@ -206,36 +282,31 @@ export async function POST(req: NextRequest) {
         rawAiMessage = res.choices?.[0]?.message?.content?.trim();
         if (!rawAiMessage) {
           errorHint = "empty_ai_response";
-          demoUsed = true;
-          planJson = buildDemoPlan(destination, days);
         } else {
           try {
-            planJson = JSON.parse(rawAiMessage);
-            if (!planJson || !Array.isArray(planJson.days)) {
+            const parsed = JSON.parse(rawAiMessage) as unknown;
+            const planFromAi = parsePlanJson(parsed);
+            if (planFromAi) {
+              planJson = planFromAi;
+              demoUsed = false;
+              errorHint = undefined;
+            } else {
               errorHint = "parsed_but_missing_days";
-              demoUsed = true;
-              planJson = buildDemoPlan(destination, days);
             }
-          } catch (parseErr: any) {
-            errorHint = `invalid_json_from_ai: ${String(parseErr?.message || parseErr)}`;
-            demoUsed = true;
-            planJson = buildDemoPlan(destination, days);
+          } catch (parseError: unknown) {
+            const message = parseError instanceof Error ? parseError.message : String(parseError);
+            errorHint = `invalid_json_from_ai: ${message}`;
           }
         }
-      } catch (e: any) {
-        errorHint = `openai_failed: ${e?.status ?? ""} ${e?.message ?? ""}`.trim();
-        demoUsed = true;
-        planJson = buildDemoPlan(destination, days);
+      } catch (error: unknown) {
+        const err = error as { status?: number; message?: string } | undefined;
+        errorHint = `openai_failed: ${err?.status ?? ""} ${err?.message ?? ""}`.trim();
       }
     } else {
       errorHint = "missing_openai_key";
-      demoUsed = true;
-      planJson = buildDemoPlan(destination, days);
     }
   } else {
     errorHint = "demo_mode";
-    demoUsed = true;
-    planJson = buildDemoPlan(destination, days);
   }
 
   // Falls Mapbox kein Zentrum liefert: Mittelpunkt aus AI-Aktivitäten
@@ -250,16 +321,24 @@ export async function POST(req: NextRequest) {
   if (isAuthed) {
     const { data: plan, error: planErr } = await supabase
       .from("plans")
-      .insert({ user_id: user!.id, title: planJson.title ?? `Trip nach ${destination}`, destination })
+      .insert({ user_id: user!.id, title: planJson.title || `Trip nach ${destination}`, destination })
       .select("id")
       .single();
 
     if (planErr || !plan) {
       return NextResponse.json({ error: "plan_insert", details: planErr?.message }, { status: 500 });
     }
-    planId = plan.id;
+    const planRecord: unknown = plan;
+    if (!isRecord(planRecord)) {
+      return NextResponse.json({ error: "plan_insert", details: "invalid_plan_response" }, { status: 500 });
+    }
+    const planIdValue = planRecord["id"];
+    if (typeof planIdValue !== "string") {
+      return NextResponse.json({ error: "plan_insert", details: "plan_id_missing" }, { status: 500 });
+    }
+    planId = planIdValue;
 
-    const dayRows = (planJson.days ?? []).map((d: any) => ({
+    const dayRows = planJson.days.map((d) => ({
       plan_id: planId,
       day_index: d.day_index ?? 1,
       note: d.note ?? null,
@@ -275,22 +354,44 @@ export async function POST(req: NextRequest) {
     }
 
     const map = new Map<number, string>();
-    insertedDays?.forEach((r: any) => map.set(r.day_index, r.id));
+    const insertedDayRows = Array.isArray(insertedDays) ? insertedDays.filter(isRecord) : [];
 
-    const acts: any[] = [];
-    for (const d of planJson.days ?? []) {
+    for (const row of insertedDayRows) {
+      const dayIndexValue = row["day_index"];
+      const idValue = row["id"];
+      if (typeof dayIndexValue === "number" && typeof idValue === "string") {
+        map.set(dayIndexValue, idValue);
+      }
+    }
+
+    type ActivityInsert = {
+      plan_day_id: string;
+      title: string;
+      category: PlanActivityCategory;
+      start_time: string | null;
+      end_time: string | null;
+      cost_estimate: number | null;
+      notes: string | null;
+      lat: number | null;
+      lon: number | null;
+    };
+
+    const acts: ActivityInsert[] = [];
+    for (const d of planJson.days) {
       const pid = map.get(d.day_index);
-      for (const a of d.activities ?? []) {
+      if (!pid) continue;
+      for (const a of d.activities) {
+        const category: PlanActivityCategory = a.category;
         acts.push({
           plan_day_id: pid,
           title: a.title,
-          category: ["sight", "food", "activity", "transport", "other"].includes(a.category) ? a.category : "other",
-          start_time: a.start ?? null,
-          end_time: a.end ?? null,
-          cost_estimate: a.cost_estimate ?? null,
-          notes: a.notes ?? null,
-          lat: a.lat ?? null,
-          lon: a.lon ?? null,
+          category,
+          start_time: a.start,
+          end_time: a.end,
+          cost_estimate: a.cost_estimate,
+          notes: a.notes,
+          lat: a.lat,
+          lon: a.lon,
         });
       }
     }

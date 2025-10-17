@@ -41,7 +41,22 @@ type ApiResponse = {
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
-async function callGenerateAPI(payload: any): Promise<ApiResponse> {
+type GeneratePlanPayload = {
+  destination: string;
+  days: number;
+  month?: string;
+  travelStart?: string;
+  travelEnd?: string;
+  budgetAmount?: number;
+  budgetLevel?: "low" | "medium" | "high";
+  interests?: string[];
+  surprise?: boolean;
+  notes?: string;
+  language?: string;
+  includePrompt?: boolean;
+};
+
+async function callGenerateAPI(payload: GeneratePlanPayload): Promise<ApiResponse> {
   const res = await fetch(`${BASE}/api/plan/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -122,7 +137,7 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
   const notes = (get("notes") || "").trim() || undefined;
   const surprise = (get("surprise") || "").toLowerCase() === "1" || (get("surprise") || "").toLowerCase() === "true";
 
-  const payload: any = {
+  const payload: GeneratePlanPayload = {
     destination: city,
     days,
     includePrompt: true,
@@ -141,8 +156,8 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
   let apiError: string | null = null;
   try {
     api = await callGenerateAPI(payload);
-  } catch (e: any) {
-    apiError = e?.message || String(e);
+  } catch (error: unknown) {
+    apiError = error instanceof Error ? error.message : String(error);
   }
 
   const center = api?.center ?? null;
