@@ -14,7 +14,12 @@ export async function GET() {
     })
     const text = r.choices[0]?.message?.content ?? ''
     return NextResponse.json({ ok: true, text })
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, where: 'request', status: e?.status || 500, msg: e?.message, details: e?.response?.data }, { status: e?.status || 500 })
+  } catch (error: unknown) {
+    const err = error as { status?: number; message?: string; response?: { data?: unknown } } | undefined
+    const statusCode = err?.status ?? 500
+    return NextResponse.json(
+      { ok: false, where: 'request', status: statusCode, msg: err?.message, details: err?.response?.data },
+      { status: statusCode }
+    )
   }
 }
